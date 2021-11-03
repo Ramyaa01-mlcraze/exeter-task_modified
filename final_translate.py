@@ -7,7 +7,7 @@ import psutil
 def french_dictionary():
     with open('french_dictionary.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
-        #lo0ping over the csv file
+        #looping over the csv file
         for r in csv_reader:
             french_dict[r[0]] = [r[1],0]
 
