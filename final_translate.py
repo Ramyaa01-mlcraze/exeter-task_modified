@@ -1,72 +1,76 @@
-#import all the necessary modules
-import csv, sys, time
-import os
-import psutil
+import sys
+import csv
+import time
+import tracemalloc
 
-#function for reading the french dictionary input file
-def french_dictionary():
-    with open('french_dictionary.csv') as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        #looping over the csv file
-        for r in csv_reader:
-            french_dict[r[0]] = [r[1],0]
+#calculating the time for the execution
+start_time = time.time()
+tracemalloc.start()
 
-#function for translating the shakespeare input file
-def translation(input_file):
-    print('Reading files.....')
-    fp = open('t8.shakespeare.translate.txt', 'w')
-    check_list = french_dict.keys()
-    with open(input_file, 'r') as input_text:
-        while True:
-            line = input_text.readline() #reading all the lines of the input file
-            if not line: #if it is not a line then the condition will stop
-                break
-            buffer = ''
-            #iterate through all the words
-            for word in line.split():
-                filtered = filter(str.isalpha,word) #filter the words and capitalized words
-                query = "".join(filtered) #join the filtered words
-                if query in check_list: #check whether the word is in the french dictionary
-                    success_query = french_dict[query][0]
-                    french_dict[query][1] += 1
-                    word = word.replace(query, success_query) #replace the words
-                buffer += word + ' '
-            buffer = buffer.strip()
-            fp.write(buffer + '\n')
-    fp.close()
-    print(f'File {input_file} is translated from english to french')
-    return True
+#Read French Dictionary input file and store all the values in the dictionary
+french_dict = {}
+with open('french_dictionary.csv','r') as csv_file:
+    c_r = csv.reader(csv_file)
+    for row in c_r:
+        french_dict[row[0]] = row[1]
+csv_file.close()
 
-def frequency_csv():
-    print('Generating frequency file.....')
-    with open('frequency.csv', 'w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['English', 'French', 'Frequency'])
-        for words in french_dict:
-            writer.writerow([words, french_dict[words][0], french_dict[words][1]])
-    print('Done.')
-    return True
+#Read Find Words and store all the values in list
+fw=[]
+with open('find_words.txt','r') as f:
+    for li in f:
+        value = li.replace("\n","")
+        fw.append(value)
+f.close()
 
-def performance(process_time, memory_info):
-    print('Generating performance.txt.....')
-    with open('performance.txt', 'w') as file:
-        file.write(f"Time to process : {process_time} seconds\n") 
-        file.write(f"Memory used : {memory_info} MB")
-    print('Done.')
+#Intializing a list for counting the replacement
+freq_count = []
+dict_count = dict.fromkeys(fw, 0)
 
-if __name__ == '__main__':
-    process_start_time = time.time() 
-    french_dict = {}
-    input_file = 't8.shakespeare.txt' #shakespeare input file
+#Read the file which need changes to it.
+with open('t8.shakespeare.txt', 'r') as fil:
+    lines = fil.read()
+fil.close()
 
-    if len(sys.argv) == 2: #checking whether there are 2 areguments
-        input_file = sys.argv[1]
 
-    french_dictionary()
-    translation(input_file)
-    frequency_csv()
-    process_complete_time = time.time() #complete the process
-    memory_used = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2 #memory used
-    process_time = process_complete_time - process_start_time #calculating the process time
+for i in fw:
+    dict_count[i] += lines.count(i.lower())
+    lines = lines.replace(i.lower(), french_dict[i])
 
-    performance(process_time, memory_used)#calling the function performance
+
+for i in fw:
+    dict_count[i] += lines.count(i.upper())
+    lines = lines.replace(i.upper(), french_dict[i].upper())
+
+
+for i in fw:
+    dict_count[i] += lines.count(i.capitalize())
+    lines = lines.replace(i.capitalize(), french_dict[i].capitalize())
+    
+for i in fw:
+    freq_count.append([i, french_dict[i], dict_count[i]])
+
+
+#Writing the translated file
+with open('t8.shakespeare.translated.txt', 'w') as fi:
+    fi.write(lines)
+fi.close()
+
+#Storing the frequency in csv file.
+filename = "frequency.csv"  
+with open(filename, 'w') as csvfile: 
+    wrote = csv.writer(csvfile)
+    wrote.writerow(['English','French','Frequency']) 
+    wrote.writerows(freq_count) 
+csvfile.close()
+
+#printing the memory and  time of execution.
+mem = tracemalloc.get_traced_memory()[1] - tracemalloc.get_traced_memory()[0]
+tracemalloc.stop()
+proc = (time.time() - start_time)
+
+#Writing the Performance file
+with open("Performance.txt",'w') as file:
+  file.write(f"Time taken : {proc} seconds\n")
+  file.write(f"Memory used : {mem} in MB")
+file.close()
